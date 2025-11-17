@@ -90,7 +90,11 @@ function getRoomRef(path) {
 function loadWishlists() {
   if (useFirebase) {
     // Return current state (will be updated via listener)
-    return window.currentWishlists || [];
+    // Initialize if not set yet
+    if (window.currentWishlists === undefined) {
+      window.currentWishlists = [];
+    }
+    return window.currentWishlists;
   }
   
   // Fallback to localStorage
@@ -126,7 +130,11 @@ function saveWishlists(list) {
 
 function loadMatches() {
   if (useFirebase) {
-    return window.currentMatches || [];
+    // Initialize if not set yet
+    if (window.currentMatches === undefined) {
+      window.currentMatches = [];
+    }
+    return window.currentMatches;
   }
   
   // Fallback to localStorage
@@ -173,7 +181,8 @@ function setupFirebaseListeners() {
   if (wishlistsRef) {
     wishlistsListener = window.firebaseOnValue(wishlistsRef, (snapshot) => {
       const data = snapshot.val();
-      window.currentWishlists = Array.isArray(data) ? data : [];
+      window.currentWishlists = Array.isArray(data) ? data : (data ? [data] : []);
+      if (!window.currentWishlists) window.currentWishlists = [];
       renderWishlists();
     });
   }
@@ -437,8 +446,10 @@ clearMyBtn.addEventListener("click", () => {
 
 generateBtn.addEventListener("click", () => {
   const wishlists = loadWishlists();
+  
+  console.log("Generating matches for wishlists:", wishlists);
 
-  if (wishlists.length < 2) {
+  if (!wishlists || wishlists.length < 2) {
     alert("you need at least 2 people to generate secret santa matches.");
     return;
   }
@@ -449,6 +460,7 @@ generateBtn.addEventListener("click", () => {
     return;
   }
 
+  console.log("Generated matches:", matches);
   saveMatches(matches);
   renderMatches();
 });
