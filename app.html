@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Secret Santa Terminal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getDatabase, ref, set, onValue, push, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+    
+    // Firebase configuration
+    const firebaseConfig = {
+    apiKey: "AIzaSyCZ6QYRfiaTGMA6y4Po8A_TTQxuM_kgkiU",
+    authDomain: "secret-santa-689cb.firebaseapp.com",
+    databaseURL: "https://secret-santa-689cb-default-rtdb.firebaseio.com",
+    projectId: "secret-santa-689cb",
+    storageBucket: "secret-santa-689cb.firebasestorage.app",
+    messagingSenderId: "997180313466",
+    appId: "1:997180313466:web:284e9084dd814f73b190c3"
+    };
+    
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    
+    // Make Firebase available globally
+    window.firebaseDatabase = database;
+    window.firebaseRef = ref;
+    window.firebaseSet = set;
+    window.firebaseOnValue = onValue;
+    window.firebasePush = push;
+    window.firebaseRemove = remove;
+    
+    // Signal that Firebase is ready
+    window.firebaseReady = true;
+    console.log("✅ Firebase initialized");
+  </script>
+</head>
+
+<body class="booting">
+
+  <!-- Boot screen overlay -->
+  <div id="boot-screen">
+    <div class="boot-window">
+      <div class="boot-title">northpoleOS v1.2.3</div>
+
+      <div class="boot-progress-container">
+        <div class="boot-progress-bar">
+          <div class="boot-progress-fill" id="boot-progress-fill"></div>
+        </div>
+        <div class="boot-progress-text" id="boot-progress-text">0%</div>
+      </div>
+
+      <div class="boot-line" data-text="[ok] initializing sleigh drivers..."></div>
+      <div class="boot-line" data-text="[ok] spinning dreidel..."></div>
+      <div class="boot-line" data-text="[ok] checking naughty / nice cache..."></div>
+      <div class="boot-line" data-text="[ok] seeding random gift matcher..."></div>
+      <div class="boot-line" data-text="[ok] mounting /desktop/room..."></div>
+      <!-- Last line is filled entirely by JS with styled santa.exe -->
+      <div class="boot-line" data-text="ready. type " data-html="true"></div>
+    </div>
+  </div>
+
+  <!-- Snow overlay lives behind windows -->
+  <div id="snow-layer"></div>
+
+  <!-- Decorative terminals -->
+  <div class="window window-decorative window-decorative-1">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/northpole</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="santa.exe"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="window window-decorative window-decorative-2">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/workshop</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="giftmatch --run"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="window window-decorative window-decorative-3">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/lists</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="wishlist --check"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="window window-decorative window-decorative-4">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/stables</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="reindeer --status"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="window window-decorative window-decorative-5">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/workshop</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="elves --deploy"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="window window-decorative window-decorative-6">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="titlebar-buttons">
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+          <div class="titlebar-button"></div>
+        </div>
+        <div class="titlebar-title">terminal</div>
+      </div>
+      <div class="titlebar-right">~/presents</div>
+    </div>
+    <div class="window-body decorative-terminal">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$ </span>
+        <span class="terminal-command" data-command="presents --wrap"></span>
+        <span class="terminal-cursor">▋</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DESKTOP -->
+  <div class="desktop">
+    <div class="desktop-label">secret santa // winter session</div>
+
+    <!-- Intro window -->
+    <div class="window">
+      <div class="titlebar">
+        <div class="titlebar-left">
+          <div class="titlebar-buttons">
+            <div class="titlebar-button"></div>
+            <div class="titlebar-button"></div>
+            <div class="titlebar-button"></div>
+          </div>
+          <div class="titlebar-title">secret_santa_readme.txt</div>
+        </div>
+        <div class="titlebar-right">/desktop/room</div>
+      </div>
+
+      <div class="window-body intro-text">
+        <p>
+          Welcome to the Secret Santa terminal. Share this link with your friends so everyone can add their wishlist.
+        </p>
+        <p>Nothing is uploaded anywhere. Everything stays inside this browser.</p>
+
+        <div class="room-share-section" style="margin-top: 0.8rem; padding: 0.6rem; background: #f1e0df; border-radius: 8px; border: 1px dashed #b4969f;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+            <span style="font-size: 0.75rem; color: #7a5b65; font-weight: 600;">room code:</span>
+            <code id="roomCode" style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #d99d86; font-weight: 700; letter-spacing: 0.1em;"></code>
+            <span id="syncStatus" style="font-size: 0.65rem; color: #7a5b65; margin-left: auto;">🔄 checking...</span>
+          </div>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <button id="copyLinkBtn" class="btn-primary" style="font-size: 0.7rem; padding: 0.3rem 0.8rem;">copy share link</button>
+            <button id="newRoomBtn" class="btn-secondary" style="font-size: 0.7rem; padding: 0.3rem 0.8rem;">create new room</button>
+          </div>
+        </div>
+
+        <div class="intro-banner" style="margin-top: 0.6rem;">
+@instructions
+1. share the link above with everyone
+2. each person adds their name and wishlist
+3. when everyone is done, the host clicks GENERATE MATCHES
+4. each person reveals their match
+        </div>
+        <div id="hostIndicator" style="margin-top: 0.5rem; padding: 0.4rem; background: #e8f4e8; border-radius: 6px; font-size: 0.75rem; color: #5a7a5a; display: none;">
+          👑 you are the host
+        </div>
+      </div>
+    </div>
+
+    <!-- Main app window -->
+    <div class="window">
+      <div class="titlebar">
+        <div class="titlebar-left">
+          <div class="titlebar-buttons">
+            <div class="titlebar-button"></div>
+            <div class="titlebar-button"></div>
+            <div class="titlebar-button"></div>
+          </div>
+          <div class="titlebar-title">santa.exe</div>
+        </div>
+        <div class="titlebar-right">run /wishlist /match</div>
+      </div>
+
+      <div class="window-body">
+        <div class="main-layout">
+
+          <!-- Column 1: wishlist input -->
+          <section class="column">
+            <h2 class="section-title">wishlist input</h2>
+            <p class="section-subtitle">type your name and what you would be happy to receive.</p>
+
+            <form id="wishlistForm">
+              <div class="field">
+                <label for="name">name</label>
+                <input id="name" name="name" type="text" required placeholder="for example: alex">
+              </div>
+
+              <div class="field">
+                <label for="wishlist">wishlist (one item per line)</label>
+                <textarea id="wishlist" required placeholder="cozy socks
+fantasy novel
+dark chocolate"></textarea>
+                <p class="hint">you can mention sizes, colours, favourite shops.</p>
+              </div>
+
+              <div class="btn-row">
+                <button type="submit" class="btn-primary">save wishlist</button>
+                <button type="button" id="clearMyWishlist" class="btn-secondary">clear my input</button>
+              </div>
+            </form>
+
+            <div style="margin-top: 0.7rem;">
+              <div class="list-meta">
+                <span>everyone so far</span>
+                <span id="countLabel">0 people</span>
+              </div>
+
+              <div class="wishlists">
+                <div id="wishlistList" class="wishlists-inner">
+                  <p class="wishlist-empty">no wishlists yet. once someone adds one, it will appear here.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Column 2: matches -->
+          <section class="column">
+            <h2 class="section-title">secret santa matches</h2>
+            <p class="section-subtitle" id="matchHint">
+              generate matches when everyone has entered their wishlist.
+            </p>
+
+            <div class="chip-row">
+              <div class="chip">local only</div>
+              <div class="chip">pass-the-laptop mode</div>
+            </div>
+
+            <button id="generateMatches" class="btn-primary btn-full">
+              generate matches
+            </button>
+
+            <div class="matches">
+              <div id="matchesList" class="matches-inner">
+                <p class="matches-empty">no matches yet. click "generate matches" when you are ready.</p>
+              </div>
+            </div>
+
+            <div class="hint-bar">
+              tip: if you change any wishlist after matching, the pairs reset.
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

@@ -6,9 +6,7 @@ function getRoomId() {
 
 function createNewRoom() {
   const newRoomId = Math.random().toString(36).substring(2, 9);
-  const newUrl = new URL(window.location);
-  newUrl.searchParams.set('room', newRoomId);
-  window.location.href = newUrl.toString();
+  window.location.href = `app.html?room=${newRoomId}`;
 }
 
 function joinRoom(roomCode) {
@@ -18,14 +16,14 @@ function joinRoom(roomCode) {
     return;
   }
   
-  const newUrl = new URL(window.location);
-  newUrl.searchParams.set('room', roomId);
-  window.location.href = newUrl.toString();
+  window.location.href = `app.html?room=${roomId}`;
 }
 
 function getShareableLink() {
   const roomId = getRoomId();
-  return window.location.origin + window.location.pathname + '?room=' + roomId;
+  // Use app.html for shareable links
+  const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  return baseUrl + 'app.html?room=' + roomId;
 }
 
 // Storage keys (room-specific)
@@ -1314,76 +1312,22 @@ function initRoomSharing() {
   if (newRoomBtn) {
     newRoomBtn.addEventListener("click", () => {
       if (confirm("Create a new room? This will clear all wishlists and matches in the current room.")) {
-        // Generate new room ID
-        const newRoomId = Math.random().toString(36).substring(2, 9);
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('room', newRoomId);
-        window.location.href = newUrl.toString();
+        createNewRoom();
       }
     });
   }
 }
 
-/* ========== landing page ========== */
+// Landing page logic is now in landing.js
+// This function is kept for backwards compatibility but shouldn't be called from app.html
 function initLandingPage() {
-  // Re-check room ID from URL (in case it changed)
+  // If we're on app.html and no room is provided, redirect to landing page
   const currentRoomId = getRoomId();
-  
-  const landingPage = document.getElementById("landing-page");
-  const joinRoomForm = document.getElementById("joinRoomForm");
-  const createRoomBtn = document.getElementById("createRoomBtn");
-  const roomCodeInput = document.getElementById("roomCodeInput");
-  
-  if (!landingPage) {
-    console.error("Landing page element not found!");
-    return false;
-  }
-  
-  console.log("Checking room ID:", currentRoomId);
-  
-  // Show landing page if no room is selected
   if (!currentRoomId) {
-    console.log("No room ID found - showing landing page");
-    landingPage.style.display = "flex";
-    document.body.classList.add("landing-mode");
-    
-    // Join room form
-    if (joinRoomForm) {
-      // Remove existing listeners to avoid duplicates
-      const newForm = joinRoomForm.cloneNode(true);
-      joinRoomForm.parentNode.replaceChild(newForm, joinRoomForm);
-      const newJoinForm = document.getElementById("joinRoomForm");
-      const newRoomInput = document.getElementById("roomCodeInput");
-      
-      newJoinForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const roomCode = newRoomInput?.value.trim();
-        if (roomCode) {
-          joinRoom(roomCode);
-        }
-      });
-    }
-    
-    // Create room button
-    if (createRoomBtn) {
-      createRoomBtn.addEventListener("click", () => {
-        createNewRoom();
-      });
-    }
-    
-    // Focus on input
-    if (roomCodeInput) {
-      roomCodeInput.focus();
-    }
-    
-    return true; // Indicates landing page is shown
-  } else {
-    // Hide landing page if room is selected
-    console.log("Room ID found - hiding landing page");
-    landingPage.style.display = "none";
-    document.body.classList.remove("landing-mode");
-    return false; // Indicates we should continue with app initialization
+    window.location.href = 'index.html';
+    return true;
   }
+  return false;
 }
 
 /* ========== initial render ========== */
@@ -1443,28 +1387,15 @@ function initializeApp() {
   renderMatches();
 }
 
-// Initialize landing page immediately
-// Check if we need to show landing page right away
-(function() {
-  const currentRoomId = getRoomId();
-  const landingPage = document.getElementById("landing-page");
-  
-  if (!currentRoomId && landingPage) {
-    // Show landing page immediately if no room
-    landingPage.style.display = "flex";
-    document.body.classList.add("landing-mode");
-  }
-})();
-
-// Wait for DOM to be ready, then initialize
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    if (!initLandingPage()) {
-      initializeApp();
-    }
-  });
+// Check if we have a room - if not, redirect to landing page
+const currentRoomId = getRoomId();
+if (!currentRoomId) {
+  window.location.href = 'index.html';
 } else {
-  if (!initLandingPage()) {
+  // Wait for DOM to be ready, then initialize app
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+  } else {
     initializeApp();
   }
 }
