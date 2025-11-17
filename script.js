@@ -29,6 +29,7 @@ const STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
 const MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
 const CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
 const DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
+const HOST_KEY = getStorageKey(ROOM_ID, "host");
 
 // Generate or retrieve a unique device ID for this browser/device
 function getDeviceId() {
@@ -74,6 +75,36 @@ function getDeviceSubmissionName() {
   }
 }
 
+// Host management
+function getHostDeviceId() {
+  try {
+    return localStorage.getItem(HOST_KEY) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setHostDeviceId(deviceId) {
+  try {
+    localStorage.setItem(HOST_KEY, deviceId);
+  } catch (e) {
+    console.error("Could not save host device ID", e);
+  }
+}
+
+function isHost() {
+  const deviceId = getDeviceId();
+  const hostId = getHostDeviceId();
+  
+  // If no host is set, first person becomes host
+  if (!hostId && deviceId) {
+    setHostDeviceId(deviceId);
+    return true;
+  }
+  
+  return deviceId === hostId;
+}
+
 // Get current user's name (from their wishlist submission)
 function getCurrentUserName() {
   try {
@@ -93,7 +124,7 @@ function setCurrentUserName(name) {
 
 // Form and UI elements - wait for DOM to be ready
 let form, nameInput, wishlistInput, listContainer, countLabel, clearMyBtn;
-let generateBtn, matchesList, matchHint;
+let generateBtn, matchesList, matchHint, hostIndicator;
 
 function initElements() {
   form = document.getElementById("wishlistForm");
@@ -105,6 +136,7 @@ function initElements() {
   generateBtn = document.getElementById("generateMatches");
   matchesList = document.getElementById("matchesList");
   matchHint = document.getElementById("matchHint");
+  hostIndicator = document.getElementById("hostIndicator");
   
   if (!generateBtn) {
     console.error("Generate matches button not found!");
@@ -276,18 +308,48 @@ function renderWishlists() {
       "no wishlists yet. once someone adds one, it will appear here.";
     listContainer.appendChild(p);
   } else {
-    wishlists.forEach((entry) => {
+    const hostMode = isHost();
+    
+    wishlists.forEach((entry, index) => {
       const card = document.createElement("article");
       card.className = "wishlist-card";
 
       const header = document.createElement("div");
       header.className = "wishlist-name";
-      header.innerHTML = `
+      header.style.display = "flex";
+      header.style.justifyContent = "space-between";
+      header.style.alignItems = "center";
+      
+      const nameInfo = document.createElement("div");
+      nameInfo.style.display = "flex";
+      nameInfo.style.gap = "0.5rem";
+      nameInfo.style.alignItems = "center";
+      nameInfo.innerHTML = `
         <span>${entry.name}</span>
         <span>${entry.items.length} item${
           entry.items.length === 1 ? "" : "s"
         }</span>
       `;
+      header.appendChild(nameInfo);
+      
+      // Add delete button for host
+      if (hostMode) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn-delete";
+        deleteBtn.textContent = "×";
+        deleteBtn.title = "delete this wishlist";
+        deleteBtn.style.cssText = "background: #e8a8a2; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center;";
+        deleteBtn.addEventListener("click", () => {
+          if (confirm(`delete "${entry.name}"'s wishlist?`)) {
+            const updatedWishlists = wishlists.filter((_, i) => i !== index);
+            saveWishlists(updatedWishlists);
+            saveMatches([]); // Clear matches when wishlist is deleted
+            renderWishlists();
+            renderMatches();
+          }
+        });
+        header.appendChild(deleteBtn);
+      }
 
       const list = document.createElement("ul");
       list.className = "wishlist-items";
@@ -689,11 +751,43 @@ function setupEventListeners() {
   
   // Check form state on load
   updateFormState();
+  
+  // Show/hide generate button based on host status
+  function updateHostUI() {
+    const hostMode = isHost();
+    if (generateBtn) {
+      if (hostMode) {
+        generateBtn.style.display = "block";
+      } else {
+        generateBtn.style.display = "none";
+        if (matchHint) {
+          matchHint.textContent = "only the host can generate matches. wait for the host to generate them.";
+        }
+      }
+    }
+    
+    // Show host indicator
+    if (hostIndicator) {
+      if (hostMode) {
+        hostIndicator.style.display = "block";
+      } else {
+        hostIndicator.style.display = "none";
+      }
+    }
+  }
+  
+  updateHostUI();
 
   if (generateBtn) {
     generateBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      
+      // Only host can generate matches
+      if (!isHost()) {
+        alert("only the host can generate matches.");
+        return;
+      }
       
       const wishlists = loadWishlists();
       const existingMatches = loadMatches();
