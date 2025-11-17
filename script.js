@@ -75,8 +75,17 @@ function getDeviceSubmissionName() {
   }
 }
 
-// Host management
+// Host management (synced via Firebase)
+let currentHostId = null;
+let hostListener = null;
+
 function getHostDeviceId() {
+  // Return current synced host ID (from Firebase or localStorage)
+  if (useFirebase && currentHostId !== null) {
+    return currentHostId;
+  }
+  
+  // Fallback to localStorage
   try {
     return localStorage.getItem(HOST_KEY) || null;
   } catch (e) {
@@ -85,21 +94,50 @@ function getHostDeviceId() {
 }
 
 function setHostDeviceId(deviceId) {
+  if (useFirebase) {
+    const hostRef = getRoomRef('host');
+    if (hostRef) {
+      window.firebaseSet(hostRef, deviceId).catch(e => {
+        console.error("Could not save host to Firebase", e);
+      });
+    }
+  }
+  
+  // Also save to localStorage as fallback
   try {
     localStorage.setItem(HOST_KEY, deviceId);
   } catch (e) {
     console.error("Could not save host device ID", e);
   }
+  
+  currentHostId = deviceId;
 }
 
 function isHost() {
   const deviceId = getDeviceId();
   const hostId = getHostDeviceId();
   
-  // If no host is set, first person becomes host
+  if (!deviceId) return false;
+  
+  // If no host is set and we're using Firebase, try to claim host
   if (!hostId && deviceId) {
-    setHostDeviceId(deviceId);
-    return true;
+    if (useFirebase) {
+      // Try to set host in Firebase (only if it doesn't exist)
+      const hostRef = getRoomRef('host');
+      if (hostRef) {
+        // Use a transaction-like approach: check if host exists, if not, set it
+        window.firebaseOnValue(hostRef, (snapshot) => {
+          const existingHost = snapshot.val();
+          if (!existingHost) {
+            setHostDeviceId(deviceId);
+          }
+        }, { onlyOnce: true });
+      }
+    } else {
+      // localStorage fallback: first person becomes host
+      setHostDeviceId(deviceId);
+      return true;
+    }
   }
   
   return deviceId === hostId;
@@ -297,6 +335,52 @@ function setupFirebaseListeners() {
       const data = snapshot.val();
       window.currentMatches = Array.isArray(data) ? data : [];
       renderMatches();
+    });
+  }
+  
+  // Listen to host changes
+  const hostRef = getRoomRef('host');
+  if (hostRef) {
+    let hostCheckDone = false;
+    hostListener = window.firebaseOnValue(hostRef, (snapshot) => {
+      const hostId = snapshot.val();
+      currentHostId = hostId || null;
+      
+      // Update localStorage as backup
+      if (hostId) {
+        try {
+          localStorage.setItem(HOST_KEY, hostId);
+        } catch (e) {
+          console.error("Could not save host to localStorage", e);
+        }
+      }
+      
+      // On first load, if no host exists, try to claim it
+      if (!hostCheckDone && !hostId) {
+        hostCheckDone = true;
+        const deviceId = getDeviceId();
+        if (deviceId) {
+          console.log("No host found, claiming host status...");
+          setHostDeviceId(deviceId);
+          return; // Will update again when setHostDeviceId triggers listener
+        }
+      }
+      hostCheckDone = true;
+      
+      // Update UI to reflect host status
+      if (typeof updateHostUI === 'function') {
+        updateHostUI();
+      } else {
+        // Fallback: update UI directly
+        const deviceId = getDeviceId();
+        const isHostNow = deviceId === hostId;
+        if (generateBtn) {
+          generateBtn.style.display = isHostNow ? "block" : "none";
+        }
+        if (hostIndicator) {
+          hostIndicator.style.display = isHostNow ? "block" : "none";
+        }
+      }
     });
   }
 }
@@ -1233,8 +1317,16 @@ function initializeApp() {
       if (useFirebase) {
         setupFirebaseListeners();
         console.log("✅ Firebase connected - real-time sync enabled");
+        
+        // Host claiming is now handled in the host listener
       } else {
         console.log("ℹ️ Using localStorage (Firebase not configured)");
+        // Fallback: set host in localStorage if not set
+        const deviceId = getDeviceId();
+        const hostId = getHostDeviceId();
+        if (!hostId && deviceId) {
+          setHostDeviceId(deviceId);
+        }
       }
     } else if (attempts < 10) {
       // Try again after a short delay (up to 10 times = 2 seconds)
