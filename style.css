@@ -22,10 +22,11 @@ body {
   overflow-y: auto;
 }
 
-/* Hide desktop when in landing mode */
+/* Hide desktop and boot screen when in landing mode */
 body.landing-mode .desktop,
-body.landing-mode #boot-screen {
-  display: none;
+body.landing-mode #boot-screen,
+body.landing-mode #snow-layer {
+  display: none !important;
 }
 
 /* iOS-specific adjustments for full-screen */
@@ -298,7 +299,7 @@ body:not(.booting) .desktop {
   position: fixed;
   inset: 0;
   background: radial-gradient(circle at top left, #f9e9f0 0, #f3dde4 35%, #e7d5df 60%, #dbcdd9 100%);
-  display: flex;
+  display: none; /* Hidden by default, shown via JS */
   align-items: center;
   justify-content: center;
   z-index: 2000;

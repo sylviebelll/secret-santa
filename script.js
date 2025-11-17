@@ -1326,23 +1326,38 @@ function initRoomSharing() {
 
 /* ========== landing page ========== */
 function initLandingPage() {
+  // Re-check room ID from URL (in case it changed)
+  const currentRoomId = getRoomId();
+  
   const landingPage = document.getElementById("landing-page");
   const joinRoomForm = document.getElementById("joinRoomForm");
   const createRoomBtn = document.getElementById("createRoomBtn");
   const roomCodeInput = document.getElementById("roomCodeInput");
   
-  if (!landingPage) return false;
+  if (!landingPage) {
+    console.error("Landing page element not found!");
+    return false;
+  }
+  
+  console.log("Checking room ID:", currentRoomId);
   
   // Show landing page if no room is selected
-  if (!ROOM_ID) {
+  if (!currentRoomId) {
+    console.log("No room ID found - showing landing page");
     landingPage.style.display = "flex";
     document.body.classList.add("landing-mode");
     
     // Join room form
     if (joinRoomForm) {
-      joinRoomForm.addEventListener("submit", (e) => {
+      // Remove existing listeners to avoid duplicates
+      const newForm = joinRoomForm.cloneNode(true);
+      joinRoomForm.parentNode.replaceChild(newForm, joinRoomForm);
+      const newJoinForm = document.getElementById("joinRoomForm");
+      const newRoomInput = document.getElementById("roomCodeInput");
+      
+      newJoinForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const roomCode = roomCodeInput?.value.trim();
+        const roomCode = newRoomInput?.value.trim();
         if (roomCode) {
           joinRoom(roomCode);
         }
@@ -1364,6 +1379,7 @@ function initLandingPage() {
     return true; // Indicates landing page is shown
   } else {
     // Hide landing page if room is selected
+    console.log("Room ID found - hiding landing page");
     landingPage.style.display = "none";
     document.body.classList.remove("landing-mode");
     return false; // Indicates we should continue with app initialization
@@ -1373,18 +1389,16 @@ function initLandingPage() {
 /* ========== initial render ========== */
 // Wait for Firebase to load, then initialize
 function initializeApp() {
-  // Check if we should show landing page
-  if (initLandingPage()) {
-    return; // Don't initialize app if landing page is shown
-  }
+  // Re-check room ID from URL (in case it changed)
+  const currentRoomId = getRoomId();
   
   // Re-initialize storage keys now that we have a room
-  if (ROOM_ID) {
-    STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
-    MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
-    CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
-    DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
-    HOST_KEY = getStorageKey(ROOM_ID, "host");
+  if (currentRoomId) {
+    STORAGE_KEY = getStorageKey(currentRoomId, "wishlists");
+    MATCHES_KEY = getStorageKey(currentRoomId, "matches");
+    CURRENT_USER_KEY = getStorageKey(currentRoomId, "currentUser");
+    DEVICE_ID_KEY = getStorageKey(currentRoomId, "deviceId");
+    HOST_KEY = getStorageKey(currentRoomId, "host");
   }
   
   // Check Firebase - wait for module to load
@@ -1429,8 +1443,20 @@ function initializeApp() {
   renderMatches();
 }
 
-// Initialize landing page immediately (before DOM is fully ready)
-// This ensures the landing page shows right away if no room is selected
+// Initialize landing page immediately
+// Check if we need to show landing page right away
+(function() {
+  const currentRoomId = getRoomId();
+  const landingPage = document.getElementById("landing-page");
+  
+  if (!currentRoomId && landingPage) {
+    // Show landing page immediately if no room
+    landingPage.style.display = "flex";
+    document.body.classList.add("landing-mode");
+  }
+})();
+
+// Wait for DOM to be ready, then initialize
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     if (!initLandingPage()) {
