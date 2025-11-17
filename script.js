@@ -755,9 +755,17 @@ function setupEventListeners() {
 
 /* ========== falling snow ========== */
 const snowflakeChars = ['❄', '❅', '❆', '✱', '✲', '✳'];
+let activeSnowflakes = 0;
+
+// Detect iOS for performance optimizations
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const MAX_SNOWFLAKES = isIOS ? 30 : 100; // Limit on iOS, more on desktop
 
 function createSnowflake() {
   if (!snowLayer) return;
+  
+  // Limit snowflakes on screen for better performance (especially on iOS)
+  if (activeSnowflakes >= MAX_SNOWFLAKES) return;
 
   const flake = document.createElement("div");
   const useChar = Math.random() < 0.75; // 75% chance of using character
@@ -781,22 +789,34 @@ function createSnowflake() {
   }
 
   snowLayer.appendChild(flake);
+  activeSnowflakes++;
 
   flake.addEventListener("animationend", () => {
     flake.remove();
+    activeSnowflakes--;
   });
 }
 
-// spawn snowflakes more frequently
-setInterval(createSnowflake, 100);
+// Spawn rate: slower on iOS for performance, faster on desktop for full effect
+const snowflakeInterval = isIOS ? 300 : 100; // iOS: 300ms, Desktop: 100ms (original)
+
+// spawn snowflakes
+setInterval(createSnowflake, snowflakeInterval);
 
 /* ========== cursor pixel dust trail ========== */
 let lastTrailTime = 0;
-const trailDelay = 20; // milliseconds
+const trailDelay = isIOS ? 50 : 20; // Slower on iOS for better performance
+let activePixels = 0;
+const MAX_PIXELS = isIOS ? 10 : 50; // Limit on iOS, more on desktop
 
 window.addEventListener("pointermove", (event) => {
+  // Disable cursor trail on touch devices (iOS) for better performance
+  if (isIOS && event.pointerType === 'touch') return;
+  
   const now = performance.now();
   if (now - lastTrailTime < trailDelay) return;
+  if (activePixels >= MAX_PIXELS) return;
+  
   lastTrailTime = now;
 
   const pixel = document.createElement("div");
@@ -805,9 +825,11 @@ window.addEventListener("pointermove", (event) => {
   pixel.style.top = `${event.clientY}px`;
 
   document.body.appendChild(pixel);
+  activePixels++;
 
   pixel.addEventListener("animationend", () => {
     pixel.remove();
+    activePixels--;
   });
 });
 

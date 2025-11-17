@@ -167,17 +167,34 @@ body:not(.booting) .desktop {
   position: absolute;
   top: -20px;
   opacity: 0.9;
-  filter: drop-shadow(0 0 3px rgba(255,255,255,0.8));
   animation: snow-fall var(--duration, 10s) linear forwards;
   user-select: none;
   pointer-events: none;
+  will-change: transform, opacity; /* Hint for GPU acceleration */
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Add drop-shadow filter only on desktop (not iOS) for better performance */
+@supports not (-webkit-touch-callout: none) {
+  .snowflake {
+    filter: drop-shadow(0 0 3px rgba(255,255,255,0.8));
+  }
 }
 
 .snowflake-char {
   font-size: var(--size, 12px);
   line-height: 1;
   color: #ffffff;
-  text-shadow: 0 0 6px rgba(255,255,255,0.9);
+  text-shadow: 0 0 6px rgba(255,255,255,0.9); /* Full shadow on desktop */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Reduce shadow on iOS for better performance */
+@supports (-webkit-touch-callout: none) {
+  .snowflake-char {
+    text-shadow: 0 0 4px rgba(255,255,255,0.8);
+  }
 }
 
 .snowflake-shape {
@@ -234,6 +251,8 @@ body:not(.booting) .desktop {
   opacity: 0.9;
   z-index: 30;
   animation: pixel-fade 0.5s ease-out forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 @keyframes pixel-fade {
