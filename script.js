@@ -1328,6 +1328,9 @@ function runBootSequence() {
   if (!bootScreen) {
     // If for some reason there is no boot screen, just ensure desktop is visible
     document.body.classList.remove("booting");
+    bootComplete = true;
+    // Check if email notification should be shown
+    showEmailNotificationIfMatch();
     return;
   }
 
