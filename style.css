@@ -22,6 +22,12 @@ body {
   overflow-y: auto;
 }
 
+/* Hide desktop when in landing mode */
+body.landing-mode .desktop,
+body.landing-mode #boot-screen {
+  display: none;
+}
+
 /* iOS-specific adjustments for full-screen */
 @supports (-webkit-touch-callout: none) {
   body {
@@ -284,6 +290,112 @@ body:not(.booting) .desktop {
   to {
     transform: translateY(-4px);
     opacity: 0;
+  }
+}
+
+/* ====== LANDING PAGE ====== */
+.landing-page {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top left, #f9e9f0 0, #f3dde4 35%, #e7d5df 60%, #dbcdd9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1.5rem;
+}
+
+.landing-window {
+  background-color: #fdf7f3;
+  border-radius: 12px;
+  border: 2px solid #b4969f;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+}
+
+.landing-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #d99d86;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-family: "Courier New", monospace;
+  text-transform: lowercase;
+}
+
+.landing-content {
+  margin-top: 1.5rem;
+}
+
+.landing-subtitle {
+  text-align: center;
+  color: #7a5b65;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.landing-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.landing-option {
+  padding: 1.5rem;
+  background: #f1e0df;
+  border-radius: 8px;
+  border: 1px dashed #b4969f;
+}
+
+.landing-option h3 {
+  font-size: 1.1rem;
+  color: #51353f;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.landing-option p {
+  font-size: 0.85rem;
+  color: #7a5b65;
+  margin-bottom: 1rem;
+}
+
+.landing-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.landing-form input {
+  padding: 0.7rem;
+  border: 2px solid #b4969f;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: "Courier New", monospace;
+  text-transform: lowercase;
+  text-align: center;
+  letter-spacing: 0.2em;
+  background: #fdf7f3;
+  color: #2a1f24;
+}
+
+.landing-form input:focus {
+  outline: none;
+  border-color: #d99d86;
+  box-shadow: 0 0 0 3px rgba(217, 157, 134, 0.2);
+}
+
+.landing-option .btn-primary {
+  width: 100%;
+}
+
+/* iOS full-screen support for landing page */
+@supports (-webkit-touch-callout: none) {
+  .landing-page {
+    min-height: -webkit-fill-available;
+    padding: env(safe-area-inset-top, 1.5rem) env(safe-area-inset-right, 1.5rem) env(safe-area-inset-bottom, 1.5rem) env(safe-area-inset-left, 1.5rem);
   }
 }
 

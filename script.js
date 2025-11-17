@@ -1,17 +1,26 @@
 // Room management
 function getRoomId() {
   const urlParams = new URLSearchParams(window.location.search);
-  let roomId = urlParams.get('room');
-  
-  if (!roomId) {
-    // Generate a new room ID
-    roomId = Math.random().toString(36).substring(2, 9);
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set('room', roomId);
-    window.history.replaceState({}, '', newUrl);
+  return urlParams.get('room') || null;
+}
+
+function createNewRoom() {
+  const newRoomId = Math.random().toString(36).substring(2, 9);
+  const newUrl = new URL(window.location);
+  newUrl.searchParams.set('room', newRoomId);
+  window.location.href = newUrl.toString();
+}
+
+function joinRoom(roomCode) {
+  const roomId = roomCode.trim().toLowerCase();
+  if (!roomId || roomId.length < 3) {
+    alert("please enter a valid room code (at least 3 characters)");
+    return;
   }
   
-  return roomId;
+  const newUrl = new URL(window.location);
+  newUrl.searchParams.set('room', roomId);
+  window.location.href = newUrl.toString();
 }
 
 function getShareableLink() {
@@ -24,21 +33,29 @@ function getStorageKey(roomId, key) {
   return `secretSanta_${roomId}_${key}`;
 }
 
+// Get room ID - if null, show landing page
 const ROOM_ID = getRoomId();
-const STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
-const MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
-const CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
-const DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
-const HOST_KEY = getStorageKey(ROOM_ID, "host");
+let STORAGE_KEY, MATCHES_KEY, CURRENT_USER_KEY, DEVICE_ID_KEY, HOST_KEY;
+
+// Only set storage keys if we have a room
+if (ROOM_ID) {
+  STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
+  MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
+  CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
+  DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
+  HOST_KEY = getStorageKey(ROOM_ID, "host");
+}
 
 // Generate or retrieve a unique device ID for this browser/device
+// Uses a global device ID (not room-specific) so device tracking works across rooms
 function getDeviceId() {
   try {
-    let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+    const GLOBAL_DEVICE_KEY = 'secretSanta_global_deviceId';
+    let deviceId = localStorage.getItem(GLOBAL_DEVICE_KEY);
     if (!deviceId) {
       // Generate a unique ID based on browser fingerprint + timestamp
       deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-      localStorage.setItem(DEVICE_ID_KEY, deviceId);
+      localStorage.setItem(GLOBAL_DEVICE_KEY, deviceId);
     }
     return deviceId;
   } catch (e) {
@@ -1307,9 +1324,69 @@ function initRoomSharing() {
   }
 }
 
+/* ========== landing page ========== */
+function initLandingPage() {
+  const landingPage = document.getElementById("landing-page");
+  const joinRoomForm = document.getElementById("joinRoomForm");
+  const createRoomBtn = document.getElementById("createRoomBtn");
+  const roomCodeInput = document.getElementById("roomCodeInput");
+  
+  if (!landingPage) return false;
+  
+  // Show landing page if no room is selected
+  if (!ROOM_ID) {
+    landingPage.style.display = "flex";
+    document.body.classList.add("landing-mode");
+    
+    // Join room form
+    if (joinRoomForm) {
+      joinRoomForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const roomCode = roomCodeInput?.value.trim();
+        if (roomCode) {
+          joinRoom(roomCode);
+        }
+      });
+    }
+    
+    // Create room button
+    if (createRoomBtn) {
+      createRoomBtn.addEventListener("click", () => {
+        createNewRoom();
+      });
+    }
+    
+    // Focus on input
+    if (roomCodeInput) {
+      roomCodeInput.focus();
+    }
+    
+    return true; // Indicates landing page is shown
+  } else {
+    // Hide landing page if room is selected
+    landingPage.style.display = "none";
+    document.body.classList.remove("landing-mode");
+    return false; // Indicates we should continue with app initialization
+  }
+}
+
 /* ========== initial render ========== */
 // Wait for Firebase to load, then initialize
 function initializeApp() {
+  // Check if we should show landing page
+  if (initLandingPage()) {
+    return; // Don't initialize app if landing page is shown
+  }
+  
+  // Re-initialize storage keys now that we have a room
+  if (ROOM_ID) {
+    STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
+    MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
+    CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
+    DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
+    HOST_KEY = getStorageKey(ROOM_ID, "host");
+  }
+  
   // Check Firebase - wait for module to load
   function tryInitFirebase(attempts = 0) {
     if (window.firebaseReady || window.firebaseDatabase) {
@@ -1352,9 +1429,16 @@ function initializeApp() {
   renderMatches();
 }
 
-// Wait for DOM to be ready
+// Initialize landing page immediately (before DOM is fully ready)
+// This ensures the landing page shows right away if no room is selected
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApp);
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!initLandingPage()) {
+      initializeApp();
+    }
+  });
 } else {
-  initializeApp();
+  if (!initLandingPage()) {
+    initializeApp();
+  }
 }

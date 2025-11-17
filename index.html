@@ -41,7 +41,42 @@
 
 <body class="booting">
 
-    
+  <!-- Landing page (shown when no room is selected) -->
+  <div id="landing-page" class="landing-page">
+    <div class="landing-window">
+      <div class="landing-title">secret santa terminal</div>
+      <div class="landing-content">
+        <p class="landing-subtitle">join an existing room or create a new one</p>
+        
+        <div class="landing-options">
+          <!-- Join Room -->
+          <div class="landing-option">
+            <h3>join room</h3>
+            <p>enter a room code to join an existing secret santa</p>
+            <form id="joinRoomForm" class="landing-form">
+              <input 
+                type="text" 
+                id="roomCodeInput" 
+                placeholder="room code" 
+                maxlength="10"
+                pattern="[a-zA-Z0-9]+"
+                required
+                autocomplete="off"
+              />
+              <button type="submit" class="btn-primary">join room</button>
+            </form>
+          </div>
+          
+          <!-- Create Room -->
+          <div class="landing-option">
+            <h3>create room</h3>
+            <p>start a new secret santa session</p>
+            <button id="createRoomBtn" class="btn-primary">create new room</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Boot screen overlay -->
   <div id="boot-screen">
