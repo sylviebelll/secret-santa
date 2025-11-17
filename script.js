@@ -234,11 +234,29 @@ function loadMatches() {
   }
 }
 
+// Remove undefined values from data (Firebase doesn't allow undefined)
+function cleanDataForFirebase(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => cleanDataForFirebase(item));
+  } else if (data && typeof data === 'object') {
+    const cleaned = {};
+    for (const key in data) {
+      if (data[key] !== undefined) {
+        cleaned[key] = cleanDataForFirebase(data[key]);
+      }
+    }
+    return cleaned;
+  }
+  return data;
+}
+
 function saveMatches(matches) {
   if (useFirebase) {
     const matchesRef = getRoomRef('matches');
     if (matchesRef) {
-      window.firebaseSet(matchesRef, matches).catch(e => {
+      // Remove undefined values before saving to Firebase
+      const cleanedMatches = cleanDataForFirebase(matches);
+      window.firebaseSet(matchesRef, cleanedMatches).catch(e => {
         console.error("Could not save matches to Firebase", e);
       });
     }
@@ -394,12 +412,20 @@ function generateDerangement(entries) {
     }
 
     if (valid) {
-      return base.map((giver, i) => ({
-        giver: giver.name,
-        receiver: shuffled[i].name,
-        giverDeviceId: giver.deviceId, // Store deviceId to handle duplicate names
-        receiverDeviceId: shuffled[i].deviceId,
-      }));
+      return base.map((giver, i) => {
+        const match = {
+          giver: giver.name,
+          receiver: shuffled[i].name,
+        };
+        // Only include deviceId if it exists (for backwards compatibility)
+        if (giver.deviceId) {
+          match.giverDeviceId = giver.deviceId;
+        }
+        if (shuffled[i].deviceId) {
+          match.receiverDeviceId = shuffled[i].deviceId;
+        }
+        return match;
+      });
     }
 
     attempts += 1;
