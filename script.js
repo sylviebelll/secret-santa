@@ -802,16 +802,28 @@ function initRoomSharing() {
 /* ========== initial render ========== */
 // Wait for Firebase to load, then initialize
 function initializeApp() {
-  // Check Firebase after a short delay to allow it to load
-  setTimeout(() => {
-    checkFirebase();
-    if (useFirebase) {
-      setupFirebaseListeners();
-      console.log("✅ Firebase connected - real-time sync enabled");
+  // Check Firebase - wait for module to load
+  function tryInitFirebase(attempts = 0) {
+    if (window.firebaseReady || window.firebaseDatabase) {
+      checkFirebase();
+      if (useFirebase) {
+        setupFirebaseListeners();
+        console.log("✅ Firebase connected - real-time sync enabled");
+      } else {
+        console.log("ℹ️ Using localStorage (Firebase not configured)");
+      }
+    } else if (attempts < 10) {
+      // Try again after a short delay (up to 10 times = 2 seconds)
+      setTimeout(() => tryInitFirebase(attempts + 1), 200);
+      return;
     } else {
-      console.log("ℹ️ Using localStorage (Firebase not configured)");
+      // Give up after 2 seconds
+      checkFirebase();
+      console.log("ℹ️ Using localStorage (Firebase not configured or failed to load)");
     }
-  }, 500);
+  }
+  
+  tryInitFirebase();
   
   initRoomSharing();
   renderWishlists();
