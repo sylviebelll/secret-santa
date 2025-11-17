@@ -335,6 +335,8 @@ function generateDerangement(entries) {
       return base.map((giver, i) => ({
         giver: giver.name,
         receiver: shuffled[i].name,
+        giverDeviceId: giver.deviceId, // Store deviceId to handle duplicate names
+        receiverDeviceId: shuffled[i].deviceId,
       }));
     }
 
@@ -361,17 +363,21 @@ function renderMatches() {
   }
 
   // Filter to only show the current user's match
-  const userMatch = currentUser 
-    ? matches.find(m => {
-        const giverName = m.giver.trim().toLowerCase();
-        const userName = currentUser.trim().toLowerCase();
-        const match = giverName === userName;
-        if (!match) {
-          console.log(`Name mismatch: "${giverName}" !== "${userName}"`);
-        }
-        return match;
-      })
-    : null;
+  // Match by deviceId first (more reliable), fallback to name for backwards compatibility
+  const deviceId = getDeviceId();
+  const userMatch = deviceId && matches.some(m => m.giverDeviceId === deviceId)
+    ? matches.find(m => m.giverDeviceId === deviceId)
+    : currentUser 
+      ? matches.find(m => {
+          const giverName = m.giver.trim().toLowerCase();
+          const userName = currentUser.trim().toLowerCase();
+          const match = giverName === userName;
+          if (!match) {
+            console.log(`Name mismatch: "${giverName}" !== "${userName}"`);
+          }
+          return match;
+        })
+      : null;
   
   console.log("Current user:", currentUser, "User match:", userMatch, "All matches:", matches);
   console.log("Available giver names:", matches.map(m => m.giver));
@@ -508,11 +514,14 @@ function renderMatches() {
   const details = document.createElement("div");
   details.className = "match-details hidden";
 
-  const receiverWishlist = wishlists.find(
-    (w) =>
-      w.name.trim().toLowerCase() ===
-      pair.receiver.trim().toLowerCase()
-  );
+  // Find receiver by deviceId if available, otherwise by name
+  const receiverWishlist = pair.receiverDeviceId
+    ? wishlists.find(w => w.deviceId === pair.receiverDeviceId)
+    : wishlists.find(
+        (w) =>
+          w.name.trim().toLowerCase() ===
+          pair.receiver.trim().toLowerCase()
+      );
 
   const title = document.createElement("h3");
   title.textContent = `you are shopping for: ${pair.receiver}`;
@@ -605,7 +614,7 @@ function setupEventListeners() {
         return;
       }
     } else {
-      // Same device, different name - BLOCK
+      // Same device, different name - BLOCK (one submission per device)
       alert(`this device has already submitted a wishlist${existingName ? ` as "${existingName}"` : ''}. each person can only submit once.`);
       if (existingName) {
         nameInput.value = existingName;
@@ -614,16 +623,8 @@ function setupEventListeners() {
     }
   }
   
-  // SECONDARY CHECK: Does this name already exist? (prevents name collisions)
-  const existingIndex = wishlists.findIndex(
-    (entry) => entry.name.trim().toLowerCase() === nameLower
-  );
-
-  if (existingIndex !== -1) {
-    // Name already taken by someone else
-    alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
-    return;
-  }
+  // Note: We allow duplicate names (multiple people can have the same name)
+  // The device ID ensures each device can only submit once
 
   // New submission - add it with device ID
   const newEntry = { name, items: rawWishlist, deviceId };
