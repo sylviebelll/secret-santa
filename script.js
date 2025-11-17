@@ -320,27 +320,121 @@ function renderMatches() {
     ? matches.find(m => {
         const giverName = m.giver.trim().toLowerCase();
         const userName = currentUser.trim().toLowerCase();
-        return giverName === userName;
+        const match = giverName === userName;
+        if (!match) {
+          console.log(`Name mismatch: "${giverName}" !== "${userName}"`);
+        }
+        return match;
       })
     : null;
   
   console.log("Current user:", currentUser, "User match:", userMatch, "All matches:", matches);
+  console.log("Available giver names:", matches.map(m => m.giver));
 
   if (!currentUser) {
+    const container = document.createElement("div");
+    container.style.padding = "0.5rem";
+    
     const p = document.createElement("p");
     p.className = "matches-empty";
-    p.textContent = "add your wishlist first to see your match.";
-    matchesList.appendChild(p);
-    matchHint.textContent = "generate matches when everyone has entered their wishlist.";
+    p.textContent = "enter your name to see your match:";
+    p.style.marginBottom = "0.5rem";
+    container.appendChild(p);
+    
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "your name";
+    nameInput.style.width = "100%";
+    nameInput.style.padding = "0.4rem";
+    nameInput.style.marginBottom = "0.4rem";
+    nameInput.style.borderRadius = "6px";
+    nameInput.style.border = "1px solid #cbaebe";
+    
+    const viewBtn = document.createElement("button");
+    viewBtn.className = "btn-primary";
+    viewBtn.textContent = "view my match";
+    viewBtn.style.width = "100%";
+    
+    viewBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (name) {
+        setCurrentUserName(name);
+        renderMatches(); // Re-render to show the match
+      } else {
+        alert("please enter your name");
+      }
+    });
+    
+    nameInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        viewBtn.click();
+      }
+    });
+    
+    container.appendChild(nameInput);
+    container.appendChild(viewBtn);
+    matchesList.appendChild(container);
+    matchHint.textContent = "enter your name above to see your secret santa match.";
     return;
   }
 
   if (!userMatch) {
+    const container = document.createElement("div");
+    container.style.padding = "0.5rem";
+    
     const p = document.createElement("p");
     p.className = "matches-empty";
-    p.textContent = `no match found for "${currentUser}". make sure you've added your wishlist and matches have been generated.`;
-    matchesList.appendChild(p);
-    matchHint.textContent = "your match will appear here once generated.";
+    p.textContent = `no match found for "${currentUser}".`;
+    p.style.marginBottom = "0.5rem";
+    container.appendChild(p);
+    
+    const p2 = document.createElement("p");
+    p2.style.fontSize = "0.75rem";
+    p2.style.color = "#7a5b65";
+    p2.textContent = "Available names in matches: " + matches.map(m => m.giver).join(", ");
+    p2.style.marginBottom = "0.3rem";
+    container.appendChild(p2);
+    
+    const p3 = document.createElement("p");
+    p3.style.fontSize = "0.75rem";
+    p3.style.color = "#7a5b65";
+    p3.textContent = "Enter your name exactly as it appears above (case doesn't matter):";
+    p3.style.marginBottom = "0.5rem";
+    container.appendChild(p3);
+    
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "your name";
+    nameInput.value = currentUser;
+    nameInput.style.width = "100%";
+    nameInput.style.padding = "0.4rem";
+    nameInput.style.marginBottom = "0.4rem";
+    nameInput.style.borderRadius = "6px";
+    nameInput.style.border = "1px solid #cbaebe";
+    
+    const viewBtn = document.createElement("button");
+    viewBtn.className = "btn-primary";
+    viewBtn.textContent = "try again";
+    viewBtn.style.width = "100%";
+    
+    viewBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (name) {
+        setCurrentUserName(name);
+        renderMatches(); // Re-render to show the match
+      }
+    });
+    
+    nameInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        viewBtn.click();
+      }
+    });
+    
+    container.appendChild(nameInput);
+    container.appendChild(viewBtn);
+    matchesList.appendChild(container);
+    matchHint.textContent = "your match will appear here once found.";
     return;
   }
 
@@ -490,6 +584,15 @@ function setupEventListeners() {
       console.log("Generated matches:", matches);
       saveMatches(matches);
       renderMatches();
+      
+      // Show success message
+      const originalText = generateBtn.textContent;
+      generateBtn.textContent = "matches generated!";
+      generateBtn.style.background = "#c6e3c3";
+      setTimeout(() => {
+        generateBtn.textContent = originalText;
+        generateBtn.style.background = "";
+      }, 2000);
     });
     console.log("✅ Generate matches button listener attached");
   } else {
