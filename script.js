@@ -496,7 +496,7 @@ function renderWishlists() {
         deleteBtn.title = "delete this wishlist";
         deleteBtn.style.cssText = "background: #e8a8a2; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center;";
         deleteBtn.addEventListener("click", () => {
-          if (confirm(`delete "${entry.name}"'s wishlist?`)) {
+          if (confirm(`remove ${entry.name}?`)) {
             const updatedWishlists = wishlists.filter((_, i) => i !== index);
             saveWishlists(updatedWishlists);
             saveMatches([]); // Clear matches when wishlist is deleted
