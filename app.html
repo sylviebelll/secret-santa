@@ -66,6 +66,43 @@
   <!-- Snow overlay lives behind windows -->
   <div id="snow-layer"></div>
 
+  <!-- Retro Email Notification -->
+  <div id="email-notification" class="email-notification hidden">
+    <div class="email-notification-window">
+      <div class="email-notification-header">
+        <div class="email-notification-icon">✉</div>
+        <div class="email-notification-title">you've got mail!</div>
+        <button class="email-notification-close" id="emailCloseBtn">×</button>
+      </div>
+      <div class="email-notification-body">
+        <div class="email-notification-content">
+          <p class="email-from">from: <span>santa@northpole.os</span></p>
+          <p class="email-subject">subject: <span>your secret santa match is ready!</span></p>
+          <div class="email-message">
+            <p>click to reveal your match</p>
+            <button id="openEmailBtn" class="btn-primary">open mail</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Reveal Modal -->
+  <div id="email-reveal" class="email-reveal hidden">
+    <div class="email-reveal-window">
+      <div class="email-reveal-header">
+        <div class="email-reveal-icon">✉</div>
+        <div class="email-reveal-title">secret santa match</div>
+        <button class="email-reveal-close" id="emailRevealCloseBtn">×</button>
+      </div>
+      <div class="email-reveal-body">
+        <div id="emailRevealContent" class="email-reveal-content">
+          <!-- Match content will be inserted here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Decorative terminals -->
   <div class="window window-decorative window-decorative-1">
     <div class="titlebar">

@@ -389,6 +389,8 @@ function setupFirebaseListeners() {
       const data = snapshot.val();
       window.currentMatches = Array.isArray(data) ? data : [];
       renderMatches();
+      // Show email notification if user has a match
+      showEmailNotificationIfMatch();
     });
   }
   
@@ -782,6 +784,142 @@ function renderMatches() {
   card.appendChild(header);
   card.appendChild(details);
   matchesList.appendChild(card);
+  
+  // Show email notification if user has a match
+  showEmailNotificationIfMatch();
+}
+
+/* ========== Email Notification ========== */
+function showEmailNotificationIfMatch() {
+  const matches = loadMatches();
+  const currentUser = getCurrentUserName();
+  const deviceId = getDeviceId();
+  
+  if (matches.length === 0) {
+    hideEmailNotification();
+    return;
+  }
+  
+  // Check if current user has a match
+  const userMatch = deviceId && matches.some(m => m.giverDeviceId === deviceId)
+    ? matches.find(m => m.giverDeviceId === deviceId)
+    : currentUser 
+      ? matches.find(m => {
+          const giverName = m.giver.trim().toLowerCase();
+          const userName = currentUser.trim().toLowerCase();
+          return giverName === userName;
+        })
+      : null;
+  
+  if (userMatch) {
+    showEmailNotification();
+  } else {
+    hideEmailNotification();
+  }
+}
+
+function showEmailNotification() {
+  const emailNotification = document.getElementById("email-notification");
+  if (emailNotification) {
+    emailNotification.classList.remove("hidden");
+  }
+}
+
+function hideEmailNotification() {
+  const emailNotification = document.getElementById("email-notification");
+  if (emailNotification) {
+    emailNotification.classList.add("hidden");
+  }
+}
+
+function showEmailReveal(userMatch, wishlists) {
+  const emailReveal = document.getElementById("email-reveal");
+  const emailRevealContent = document.getElementById("emailRevealContent");
+  
+  if (!emailReveal || !emailRevealContent) return;
+  
+  // Find receiver wishlist
+  const receiverWishlist = userMatch.receiverDeviceId
+    ? wishlists.find(w => w.deviceId === userMatch.receiverDeviceId)
+    : wishlists.find(
+        (w) =>
+          w.name.trim().toLowerCase() ===
+          userMatch.receiver.trim().toLowerCase()
+      );
+  
+  // Build content
+  emailRevealContent.innerHTML = `
+    <h3>you are shopping for: ${userMatch.receiver}</h3>
+    ${receiverWishlist && receiverWishlist.items.length > 0 ? `
+      <div class="match-wishlist">
+        <div class="match-wishlist-title">their wishlist:</div>
+        <ul>
+          ${receiverWishlist.items.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>
+    ` : '<p style="color: #7a5b65; font-size: 0.85rem;">they did not add any items.</p>'}
+  `;
+  
+  emailReveal.classList.remove("hidden");
+}
+
+function setupEmailNotificationListeners() {
+  const emailNotification = document.getElementById("email-notification");
+  const emailCloseBtn = document.getElementById("emailCloseBtn");
+  const openEmailBtn = document.getElementById("openEmailBtn");
+  const emailReveal = document.getElementById("email-reveal");
+  const emailRevealCloseBtn = document.getElementById("emailRevealCloseBtn");
+  
+  // Close notification
+  if (emailCloseBtn) {
+    emailCloseBtn.addEventListener("click", () => {
+      hideEmailNotification();
+    });
+  }
+  
+  // Open email reveal
+  if (openEmailBtn) {
+    openEmailBtn.addEventListener("click", () => {
+      const matches = loadMatches();
+      const wishlists = loadWishlists();
+      const currentUser = getCurrentUserName();
+      const deviceId = getDeviceId();
+      
+      // Find user's match
+      const userMatch = deviceId && matches.some(m => m.giverDeviceId === deviceId)
+        ? matches.find(m => m.giverDeviceId === deviceId)
+        : currentUser 
+          ? matches.find(m => {
+              const giverName = m.giver.trim().toLowerCase();
+              const userName = currentUser.trim().toLowerCase();
+              return giverName === userName;
+            })
+          : null;
+      
+      if (userMatch) {
+        hideEmailNotification();
+        showEmailReveal(userMatch, wishlists);
+      }
+    });
+  }
+  
+  // Close email reveal
+  if (emailRevealCloseBtn) {
+    emailRevealCloseBtn.addEventListener("click", () => {
+      if (emailReveal) {
+        emailReveal.classList.add("hidden");
+      }
+    });
+  }
+  
+  // Close email reveal when clicking outside
+  if (emailReveal) {
+    emailReveal.addEventListener("click", (e) => {
+      if (e.target === emailReveal) {
+        emailReveal.classList.add("hidden");
+      }
+    });
+  }
 }
 
 /* ========== form events ========== */
@@ -1004,6 +1142,9 @@ function setupEventListeners() {
       console.log("Generated matches:", matches);
       saveMatches(matches);
       renderMatches();
+      
+      // Show email notification for users who have matches
+      showEmailNotificationIfMatch();
       
       // Show success message
       const originalText = generateBtn.textContent;
