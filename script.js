@@ -309,8 +309,14 @@ function renderMatches() {
 
   // Filter to only show the current user's match
   const userMatch = currentUser 
-    ? matches.find(m => m.giver.trim().toLowerCase() === currentUser.trim().toLowerCase())
+    ? matches.find(m => {
+        const giverName = m.giver.trim().toLowerCase();
+        const userName = currentUser.trim().toLowerCase();
+        return giverName === userName;
+      })
     : null;
+  
+  console.log("Current user:", currentUser, "User match:", userMatch, "All matches:", matches);
 
   if (!currentUser) {
     const p = document.createElement("p");
@@ -444,26 +450,31 @@ clearMyBtn.addEventListener("click", () => {
   nameInput.focus();
 });
 
-generateBtn.addEventListener("click", () => {
-  const wishlists = loadWishlists();
-  
-  console.log("Generating matches for wishlists:", wishlists);
+if (generateBtn) {
+  generateBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const wishlists = loadWishlists();
+    
+    console.log("Generating matches for wishlists:", wishlists);
 
-  if (!wishlists || wishlists.length < 2) {
-    alert("you need at least 2 people to generate secret santa matches.");
-    return;
-  }
+    if (!wishlists || wishlists.length < 2) {
+      alert("you need at least 2 people to generate secret santa matches.");
+      return;
+    }
 
-  const matches = generateDerangement(wishlists);
-  if (!matches) {
-    alert("could not generate matches. try again.");
-    return;
-  }
+    const matches = generateDerangement(wishlists);
+    if (!matches) {
+      alert("could not generate matches. try again.");
+      return;
+    }
 
-  console.log("Generated matches:", matches);
-  saveMatches(matches);
-  renderMatches();
-});
+    console.log("Generated matches:", matches);
+    saveMatches(matches);
+    renderMatches();
+  });
+}
 
 /* ========== falling snow ========== */
 const snowflakeChars = ['❄', '❅', '❆', '✱', '✲', '✳'];
