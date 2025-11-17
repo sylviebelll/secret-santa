@@ -527,27 +527,20 @@ function setupEventListeners() {
   }
 
   const wishlists = loadWishlists();
-  const currentUser = getCurrentUserName();
+  const nameLower = name.trim().toLowerCase();
   
-  // Check if this person has already submitted
-  if (currentUser) {
-    const currentUserLower = currentUser.trim().toLowerCase();
-    const nameLower = name.trim().toLowerCase();
+  // Check if this name already exists in wishlists (primary check - can't be bypassed)
+  const existingIndex = wishlists.findIndex(
+    (entry) => entry.name.trim().toLowerCase() === nameLower
+  );
+
+  if (existingIndex !== -1) {
+    // Name already exists - check if this is the current user trying to update
+    const currentUser = getCurrentUserName();
+    const currentUserLower = currentUser ? currentUser.trim().toLowerCase() : null;
     
-    // If they're trying to submit with a different name, prevent it
-    if (currentUserLower !== nameLower) {
-      alert(`you have already submitted a wishlist as "${currentUser}". you can only submit once.`);
-      nameInput.value = currentUser; // Reset to their original name
-      return;
-    }
-    
-    // If they're trying to resubmit with the same name, check if it already exists
-    const existingIndex = wishlists.findIndex(
-      (entry) => entry.name.trim().toLowerCase() === nameLower
-    );
-    
-    if (existingIndex !== -1) {
-      // Allow updating their own wishlist
+    if (currentUserLower === nameLower) {
+      // This is the current user updating their own wishlist - allow it
       wishlists[existingIndex] = { name, items: rawWishlist };
       saveWishlists(wishlists);
       renderWishlists();
@@ -567,17 +560,28 @@ function setupEventListeners() {
         submitBtn.style.background = "";
       }, 1500);
       return;
+    } else {
+      // Someone else already submitted with this name
+      alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
+      return;
     }
   }
   
-  // Check if this name already exists (someone else submitted it)
-  const existingIndex = wishlists.findIndex(
-    (entry) => entry.name.trim().toLowerCase() === name.trim().toLowerCase()
-  );
-
-  if (existingIndex !== -1) {
-    alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
-    return;
+  // Check if current user is trying to submit with a different name
+  const currentUser = getCurrentUserName();
+  if (currentUser) {
+    const currentUserLower = currentUser.trim().toLowerCase();
+    if (currentUserLower !== nameLower) {
+      // Check if their original name exists in wishlists
+      const originalIndex = wishlists.findIndex(
+        (entry) => entry.name.trim().toLowerCase() === currentUserLower
+      );
+      if (originalIndex !== -1) {
+        alert(`you have already submitted a wishlist as "${currentUser}". you can only submit once.`);
+        nameInput.value = currentUser; // Reset to their original name
+        return;
+      }
+    }
   }
 
   // New submission - add it
