@@ -90,6 +90,43 @@ function getDeviceSubmissionName() {
   }
 }
 
+// Get the full wishlist entry for this device
+function getDeviceWishlist() {
+  try {
+    const deviceId = getDeviceId();
+    if (!deviceId) return null;
+    
+    const wishlists = loadWishlists();
+    return wishlists.find(w => w.deviceId === deviceId) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Load the user's existing wishlist into the form
+function loadUserWishlistIntoForm() {
+  const userWishlist = getDeviceWishlist();
+  if (!userWishlist) {
+    // No existing wishlist - form stays empty
+    return;
+  }
+  
+  // Pre-fill the form with existing data
+  if (nameInput) {
+    nameInput.value = userWishlist.name;
+  }
+  
+  if (wishlistInput) {
+    wishlistInput.value = userWishlist.items.join('\n');
+  }
+  
+  // Update submit button text to indicate editing
+  const submitBtn = form?.querySelector('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.textContent = "update wishlist";
+  }
+}
+
 // Host management (synced via Firebase)
 let currentHostId = null;
 let hostListener = null;
@@ -340,6 +377,8 @@ function setupFirebaseListeners() {
       window.currentWishlists = Array.isArray(data) ? data : (data ? [data] : []);
       if (!window.currentWishlists) window.currentWishlists = [];
       renderWishlists();
+      // Reload user's wishlist into form if they have one
+      loadUserWishlistIntoForm();
     });
   }
   
@@ -787,15 +826,13 @@ function setupEventListeners() {
         saveMatches([]);
         renderMatches();
         
-        wishlistInput.value = "";
-        wishlistInput.focus();
-        
+        // Keep the form filled with updated data
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.textContent;
         submitBtn.textContent = "wishlist updated!";
         submitBtn.style.background = "#c6e3c3";
         setTimeout(() => {
-          submitBtn.textContent = originalText;
+          submitBtn.textContent = "update wishlist";
           submitBtn.style.background = "";
         }, 1500);
         return;
@@ -854,6 +891,11 @@ function setupEventListeners() {
       }
       nameInput.value = "";
       wishlistInput.value = "";
+      // Reset submit button text
+      const submitBtn = form?.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.textContent = "save wishlist";
+      }
       nameInput.focus();
     });
   }
@@ -871,6 +913,12 @@ function setupEventListeners() {
         // Also set current user name for match viewing
         setCurrentUserName(existingName);
       }
+    } else {
+      // Re-enable if they haven't submitted
+      nameInput.disabled = false;
+      nameInput.style.opacity = "";
+      nameInput.style.cursor = "";
+      nameInput.title = "";
     }
   }
   
@@ -1385,6 +1433,18 @@ function initializeApp() {
   initRoomSharing();
   renderWishlists();
   renderMatches();
+  
+  // Load user's existing wishlist into form if they have one
+  // Wait a bit for Firebase data to load if using Firebase
+  if (useFirebase) {
+    // Wait for Firebase data to sync, then load form
+    setTimeout(() => {
+      loadUserWishlistIntoForm();
+    }, 500);
+  } else {
+    // localStorage is immediate
+    loadUserWishlistIntoForm();
+  }
 }
 
 // Check if we have a room - if not, redirect to landing page
