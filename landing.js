@@ -34,10 +34,7 @@ function initLandingPage() {
     return;
   }
   
-  // Show landing page
-  if (landingPage) {
-    landingPage.style.display = "flex";
-  }
+  // Landing page is visible by default in CSS, no need to show it
   
   // Join room form
   if (joinRoomForm) {
