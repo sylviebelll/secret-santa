@@ -1575,6 +1575,14 @@ function initializeApp() {
   renderWishlists();
   renderMatches();
   
+  // Setup email notification event listeners
+  setupEmailNotificationListeners();
+  
+  // Check if email notification should be shown on initial load
+  setTimeout(() => {
+    showEmailNotificationIfMatch();
+  }, 1000);
+  
   // Load user's existing wishlist into form if they have one
   // Wait a bit for Firebase data to load if using Firebase
   if (useFirebase) {
