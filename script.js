@@ -46,17 +46,25 @@ function setCurrentUserName(name) {
   }
 }
 
-// Form and UI elements
-const form = document.getElementById("wishlistForm");
-const nameInput = document.getElementById("name");
-const wishlistInput = document.getElementById("wishlist");
-const listContainer = document.getElementById("wishlistList");
-const countLabel = document.getElementById("countLabel");
-const clearMyBtn = document.getElementById("clearMyWishlist");
+// Form and UI elements - wait for DOM to be ready
+let form, nameInput, wishlistInput, listContainer, countLabel, clearMyBtn;
+let generateBtn, matchesList, matchHint;
 
-const generateBtn = document.getElementById("generateMatches");
-const matchesList = document.getElementById("matchesList");
-const matchHint = document.getElementById("matchHint");
+function initElements() {
+  form = document.getElementById("wishlistForm");
+  nameInput = document.getElementById("name");
+  wishlistInput = document.getElementById("wishlist");
+  listContainer = document.getElementById("wishlistList");
+  countLabel = document.getElementById("countLabel");
+  clearMyBtn = document.getElementById("clearMyWishlist");
+  generateBtn = document.getElementById("generateMatches");
+  matchesList = document.getElementById("matchesList");
+  matchHint = document.getElementById("matchHint");
+  
+  if (!generateBtn) {
+    console.error("Generate matches button not found!");
+  }
+}
 
 // Snow layer
 const snowLayer = document.getElementById("snow-layer");
@@ -403,10 +411,17 @@ function renderMatches() {
 }
 
 /* ========== form events ========== */
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+function setupEventListeners() {
+  if (!form || !generateBtn) {
+    console.error("Form elements not found, retrying...");
+    setTimeout(setupEventListeners, 100);
+    return;
+  }
+  
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
 
-  const name = nameInput.value.trim();
+    const name = nameInput.value.trim();
   const rawWishlist = wishlistInput.value
     .split("\n")
     .map((line) => line.trim())
@@ -442,38 +457,44 @@ form.addEventListener("submit", (event) => {
 
   wishlistInput.value = "";
   wishlistInput.focus();
-});
-
-clearMyBtn.addEventListener("click", () => {
-  nameInput.value = "";
-  wishlistInput.value = "";
-  nameInput.focus();
-});
-
-if (generateBtn) {
-  generateBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const wishlists = loadWishlists();
-    
-    console.log("Generating matches for wishlists:", wishlists);
-
-    if (!wishlists || wishlists.length < 2) {
-      alert("you need at least 2 people to generate secret santa matches.");
-      return;
-    }
-
-    const matches = generateDerangement(wishlists);
-    if (!matches) {
-      alert("could not generate matches. try again.");
-      return;
-    }
-
-    console.log("Generated matches:", matches);
-    saveMatches(matches);
-    renderMatches();
   });
+
+  if (clearMyBtn) {
+    clearMyBtn.addEventListener("click", () => {
+      nameInput.value = "";
+      wishlistInput.value = "";
+      nameInput.focus();
+    });
+  }
+
+  if (generateBtn) {
+    generateBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const wishlists = loadWishlists();
+      
+      console.log("Generating matches for wishlists:", wishlists);
+
+      if (!wishlists || wishlists.length < 2) {
+        alert("you need at least 2 people to generate secret santa matches.");
+        return;
+      }
+
+      const matches = generateDerangement(wishlists);
+      if (!matches) {
+        alert("could not generate matches. try again.");
+        return;
+      }
+
+      console.log("Generated matches:", matches);
+      saveMatches(matches);
+      renderMatches();
+    });
+    console.log("✅ Generate matches button listener attached");
+  } else {
+    console.error("❌ Generate matches button not found!");
+  }
 }
 
 /* ========== falling snow ========== */
@@ -825,9 +846,20 @@ function initializeApp() {
   
   tryInitFirebase();
   
+  // Initialize DOM elements
+  initElements();
+  
+  // Setup event listeners
+  setupEventListeners();
+  
   initRoomSharing();
   renderWishlists();
   renderMatches();
 }
 
-initializeApp();
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
