@@ -28,6 +28,51 @@ const ROOM_ID = getRoomId();
 const STORAGE_KEY = getStorageKey(ROOM_ID, "wishlists");
 const MATCHES_KEY = getStorageKey(ROOM_ID, "matches");
 const CURRENT_USER_KEY = getStorageKey(ROOM_ID, "currentUser");
+const DEVICE_ID_KEY = getStorageKey(ROOM_ID, "deviceId");
+
+// Generate or retrieve a unique device ID for this browser/device
+function getDeviceId() {
+  try {
+    let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+    if (!deviceId) {
+      // Generate a unique ID based on browser fingerprint + timestamp
+      deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    }
+    return deviceId;
+  } catch (e) {
+    console.error("Could not get device ID", e);
+    return null;
+  }
+}
+
+// Check if this device has already submitted a wishlist
+function hasDeviceSubmitted() {
+  try {
+    const deviceId = getDeviceId();
+    if (!deviceId) return false;
+    
+    const wishlists = loadWishlists();
+    // Check if any wishlist has this device ID stored
+    return wishlists.some(w => w.deviceId === deviceId);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Get the name associated with this device
+function getDeviceSubmissionName() {
+  try {
+    const deviceId = getDeviceId();
+    if (!deviceId) return null;
+    
+    const wishlists = loadWishlists();
+    const submission = wishlists.find(w => w.deviceId === deviceId);
+    return submission ? submission.name : null;
+  } catch (e) {
+    return null;
+  }
+}
 
 // Get current user's name (from their wishlist submission)
 function getCurrentUserName() {
@@ -528,64 +573,60 @@ function setupEventListeners() {
 
   const wishlists = loadWishlists();
   const nameLower = name.trim().toLowerCase();
+  const deviceId = getDeviceId();
   
-  // Check if this name already exists in wishlists (primary check - can't be bypassed)
+  // PRIMARY CHECK: Has this device already submitted? (prevents refresh bypass)
+  if (hasDeviceSubmitted()) {
+    const existingName = getDeviceSubmissionName();
+    if (existingName && existingName.toLowerCase() === nameLower) {
+      // Same device, same name - allow updating
+      const existingIndex = wishlists.findIndex(
+        (entry) => entry.deviceId === deviceId && entry.name.trim().toLowerCase() === nameLower
+      );
+      
+      if (existingIndex !== -1) {
+        wishlists[existingIndex] = { name, items: rawWishlist, deviceId };
+        saveWishlists(wishlists);
+        renderWishlists();
+        saveMatches([]);
+        renderMatches();
+        
+        wishlistInput.value = "";
+        wishlistInput.focus();
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "wishlist updated!";
+        submitBtn.style.background = "#c6e3c3";
+        setTimeout(() => {
+          submitBtn.textContent = originalText;
+          submitBtn.style.background = "";
+        }, 1500);
+        return;
+      }
+    } else {
+      // Same device, different name - BLOCK
+      alert(`this device has already submitted a wishlist${existingName ? ` as "${existingName}"` : ''}. each person can only submit once.`);
+      if (existingName) {
+        nameInput.value = existingName;
+      }
+      return;
+    }
+  }
+  
+  // SECONDARY CHECK: Does this name already exist? (prevents name collisions)
   const existingIndex = wishlists.findIndex(
     (entry) => entry.name.trim().toLowerCase() === nameLower
   );
 
   if (existingIndex !== -1) {
-    // Name already exists - check if this is the current user trying to update
-    const currentUser = getCurrentUserName();
-    const currentUserLower = currentUser ? currentUser.trim().toLowerCase() : null;
-    
-    if (currentUserLower === nameLower) {
-      // This is the current user updating their own wishlist - allow it
-      wishlists[existingIndex] = { name, items: rawWishlist };
-      saveWishlists(wishlists);
-      renderWishlists();
-      saveMatches([]);
-      renderMatches();
-      
-      wishlistInput.value = "";
-      wishlistInput.focus();
-      
-      // Show success message
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = "wishlist updated!";
-      submitBtn.style.background = "#c6e3c3";
-      setTimeout(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.style.background = "";
-      }, 1500);
-      return;
-    } else {
-      // Someone else already submitted with this name
-      alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
-      return;
-    }
-  }
-  
-  // Check if current user is trying to submit with a different name
-  const currentUser = getCurrentUserName();
-  if (currentUser) {
-    const currentUserLower = currentUser.trim().toLowerCase();
-    if (currentUserLower !== nameLower) {
-      // Check if their original name exists in wishlists
-      const originalIndex = wishlists.findIndex(
-        (entry) => entry.name.trim().toLowerCase() === currentUserLower
-      );
-      if (originalIndex !== -1) {
-        alert(`you have already submitted a wishlist as "${currentUser}". you can only submit once.`);
-        nameInput.value = currentUser; // Reset to their original name
-        return;
-      }
-    }
+    // Name already taken by someone else
+    alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
+    return;
   }
 
-  // New submission - add it
-  const newEntry = { name, items: rawWishlist };
+  // New submission - add it with device ID
+  const newEntry = { name, items: rawWishlist, deviceId };
   wishlists.push(newEntry);
 
   // Store the current user's name so they can see their own match
@@ -631,18 +672,16 @@ function setupEventListeners() {
   
   // Disable name input if user has already submitted
   function updateFormState() {
-    const currentUser = getCurrentUserName();
-    if (currentUser) {
-      const wishlists = loadWishlists();
-      const hasSubmission = wishlists.some(
-        w => w.name.trim().toLowerCase() === currentUser.trim().toLowerCase()
-      );
-      if (hasSubmission) {
-        nameInput.value = currentUser;
+    if (hasDeviceSubmitted()) {
+      const existingName = getDeviceSubmissionName();
+      if (existingName) {
+        nameInput.value = existingName;
         nameInput.disabled = true;
         nameInput.style.opacity = "0.6";
         nameInput.style.cursor = "not-allowed";
         nameInput.title = "you have already submitted a wishlist";
+        // Also set current user name for match viewing
+        setCurrentUserName(existingName);
       }
     }
   }
