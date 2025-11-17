@@ -884,6 +884,9 @@ const MAX_SNOWFLAKES = isIOS ? 30 : 100; // Limit on iOS, more on desktop
 function createSnowflake() {
   if (!snowLayer) return;
   
+  // Disable snow completely on iOS
+  if (isIOS) return;
+  
   // Limit snowflakes on screen for better performance (especially on iOS)
   if (activeSnowflakes >= MAX_SNOWFLAKES) return;
 
@@ -920,8 +923,10 @@ function createSnowflake() {
 // Spawn rate: slower on iOS for performance, faster on desktop for full effect
 const snowflakeInterval = isIOS ? 300 : 100; // iOS: 300ms, Desktop: 100ms (original)
 
-// spawn snowflakes
-setInterval(createSnowflake, snowflakeInterval);
+// spawn snowflakes (disabled on iOS)
+if (!isIOS) {
+  setInterval(createSnowflake, snowflakeInterval);
+}
 
 /* ========== cursor pixel dust trail ========== */
 let lastTrailTime = 0;

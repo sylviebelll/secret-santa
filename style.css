@@ -163,6 +163,13 @@ body:not(.booting) .desktop {
   z-index: 5;
 }
 
+/* Hide snow layer on iOS */
+@supports (-webkit-touch-callout: none) {
+  #snow-layer {
+    display: none;
+  }
+}
+
 .snowflake {
   position: absolute;
   top: -20px;
