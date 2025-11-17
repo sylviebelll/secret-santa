@@ -818,7 +818,15 @@ function showEmailNotificationIfMatch() {
   }
 }
 
+// Track if boot sequence is complete
+let bootComplete = false;
+
 function showEmailNotification() {
+  // Don't show email notification during boot sequence
+  if (!bootComplete) {
+    return;
+  }
+  
   const emailNotification = document.getElementById("email-notification");
   if (emailNotification) {
     emailNotification.classList.remove("hidden");
@@ -1369,6 +1377,9 @@ function runBootSequence() {
       setTimeout(() => {
         bootScreen.classList.add("boot-screen--hide");
         document.body.classList.remove("booting");
+        bootComplete = true;
+        // Now that boot is complete, check if email notification should be shown
+        showEmailNotificationIfMatch();
       }, 800);
     }
   }
@@ -1578,10 +1589,8 @@ function initializeApp() {
   // Setup email notification event listeners
   setupEmailNotificationListeners();
   
-  // Check if email notification should be shown on initial load
-  setTimeout(() => {
-    showEmailNotificationIfMatch();
-  }, 1000);
+  // Email notification will be shown after boot sequence completes
+  // (handled in runBootSequence)
   
   // Load user's existing wishlist into form if they have one
   // Wait a bit for Firebase data to load if using Firebase
