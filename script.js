@@ -567,12 +567,36 @@ function setupEventListeners() {
       e.stopPropagation();
       
       const wishlists = loadWishlists();
+      const existingMatches = loadMatches();
       
       console.log("Generating matches for wishlists:", wishlists);
 
       if (!wishlists || wishlists.length < 2) {
         alert("you need at least 2 people to generate secret santa matches.");
         return;
+      }
+
+      // Check if matches already exist
+      if (existingMatches && existingMatches.length > 0) {
+        // Count unique givers in existing matches
+        const existingGiverCount = new Set(existingMatches.map(m => m.giver.toLowerCase().trim())).size;
+        const currentWishlistCount = wishlists.length;
+        
+        console.log("Existing matches found:", existingGiverCount, "givers,", currentWishlistCount, "wishlists");
+        
+        // Only allow regeneration if more people have been added
+        if (currentWishlistCount <= existingGiverCount) {
+          alert(`matches have already been generated for ${existingGiverCount} people. add more people to regenerate matches.`);
+          return;
+        }
+        
+        // Warn before regenerating
+        const confirmRegenerate = confirm(
+          `${currentWishlistCount - existingGiverCount} new person(s) added. regenerate matches? (this will create new assignments for everyone)`
+        );
+        if (!confirmRegenerate) {
+          return;
+        }
       }
 
       const matches = generateDerangement(wishlists);
