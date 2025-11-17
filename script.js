@@ -527,17 +527,62 @@ function setupEventListeners() {
   }
 
   const wishlists = loadWishlists();
+  const currentUser = getCurrentUserName();
+  
+  // Check if this person has already submitted
+  if (currentUser) {
+    const currentUserLower = currentUser.trim().toLowerCase();
+    const nameLower = name.trim().toLowerCase();
+    
+    // If they're trying to submit with a different name, prevent it
+    if (currentUserLower !== nameLower) {
+      alert(`you have already submitted a wishlist as "${currentUser}". you can only submit once.`);
+      nameInput.value = currentUser; // Reset to their original name
+      return;
+    }
+    
+    // If they're trying to resubmit with the same name, check if it already exists
+    const existingIndex = wishlists.findIndex(
+      (entry) => entry.name.trim().toLowerCase() === nameLower
+    );
+    
+    if (existingIndex !== -1) {
+      // Allow updating their own wishlist
+      wishlists[existingIndex] = { name, items: rawWishlist };
+      saveWishlists(wishlists);
+      renderWishlists();
+      saveMatches([]);
+      renderMatches();
+      
+      wishlistInput.value = "";
+      wishlistInput.focus();
+      
+      // Show success message
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = "wishlist updated!";
+      submitBtn.style.background = "#c6e3c3";
+      setTimeout(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.style.background = "";
+      }, 1500);
+      return;
+    }
+  }
+  
+  // Check if this name already exists (someone else submitted it)
   const existingIndex = wishlists.findIndex(
-    (entry) => entry.name.trim().toLowerCase() === name.toLowerCase()
+    (entry) => entry.name.trim().toLowerCase() === name.trim().toLowerCase()
   );
 
-  const newEntry = { name, items: rawWishlist };
-
   if (existingIndex !== -1) {
-    wishlists[existingIndex] = newEntry;
-  } else {
-    wishlists.push(newEntry);
+    alert(`a wishlist has already been submitted for "${name}". each person can only submit once.`);
+    return;
   }
+
+  // New submission - add it
+  const newEntry = { name, items: rawWishlist };
+  wishlists.push(newEntry);
 
   // Store the current user's name so they can see their own match
   setCurrentUserName(name);
@@ -550,16 +595,56 @@ function setupEventListeners() {
   renderMatches();
 
   wishlistInput.value = "";
+  nameInput.value = ""; // Clear name input after first submission
   wishlistInput.focus();
+  
+  // Show success message
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = "wishlist saved!";
+  submitBtn.style.background = "#c6e3c3";
+  setTimeout(() => {
+    submitBtn.textContent = originalText;
+    submitBtn.style.background = "";
+  }, 1500);
   });
 
   if (clearMyBtn) {
     clearMyBtn.addEventListener("click", () => {
+      const currentUser = getCurrentUserName();
+      // Only allow clearing if they haven't submitted yet, or show a warning
+      if (currentUser) {
+        const confirmClear = confirm("you have already submitted a wishlist. clearing will not remove your submission, but you can update it by submitting again.");
+        if (!confirmClear) {
+          return;
+        }
+      }
       nameInput.value = "";
       wishlistInput.value = "";
       nameInput.focus();
     });
   }
+  
+  // Disable name input if user has already submitted
+  function updateFormState() {
+    const currentUser = getCurrentUserName();
+    if (currentUser) {
+      const wishlists = loadWishlists();
+      const hasSubmission = wishlists.some(
+        w => w.name.trim().toLowerCase() === currentUser.trim().toLowerCase()
+      );
+      if (hasSubmission) {
+        nameInput.value = currentUser;
+        nameInput.disabled = true;
+        nameInput.style.opacity = "0.6";
+        nameInput.style.cursor = "not-allowed";
+        nameInput.title = "you have already submitted a wishlist";
+      }
+    }
+  }
+  
+  // Check form state on load
+  updateFormState();
 
   if (generateBtn) {
     generateBtn.addEventListener("click", (e) => {
