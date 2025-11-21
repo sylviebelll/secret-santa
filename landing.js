@@ -7,7 +7,7 @@ function getRoomId() {
 
 function createNewRoom() {
   const newRoomId = Math.random().toString(36).substring(2, 9);
-  window.location.href = `app.html?room=${newRoomId}`;
+  window.location.href = `app.html?room=${newRoomId}&new=true`;
 }
 
 function joinRoom(roomCode) {

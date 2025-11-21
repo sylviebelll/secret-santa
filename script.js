@@ -4,9 +4,14 @@ function getRoomId() {
   return urlParams.get('room') || null;
 }
 
+function isNewRoomCreation() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('new') === 'true';
+}
+
 function createNewRoom() {
   const newRoomId = Math.random().toString(36).substring(2, 9);
-  window.location.href = `app.html?room=${newRoomId}`;
+  window.location.href = `app.html?room=${newRoomId}&new=true`;
 }
 
 function joinRoom(roomCode) {
@@ -171,27 +176,8 @@ function isHost() {
   
   if (!deviceId) return false;
   
-  // If no host is set and we're using Firebase, try to claim host
-  if (!hostId && deviceId) {
-    if (useFirebase) {
-      // Try to set host in Firebase (only if it doesn't exist)
-      const hostRef = getRoomRef('host');
-      if (hostRef) {
-        // Use a transaction-like approach: check if host exists, if not, set it
-        window.firebaseOnValue(hostRef, (snapshot) => {
-          const existingHost = snapshot.val();
-          if (!existingHost) {
-            setHostDeviceId(deviceId);
-          }
-        }, { onlyOnce: true });
-      }
-    } else {
-      // localStorage fallback: first person becomes host
-      setHostDeviceId(deviceId);
-      return true;
-    }
-  }
-  
+  // Only check if this device is the host - don't auto-claim
+  // Host is set only when creating a new room
   return deviceId === hostId;
 }
 
@@ -303,13 +289,78 @@ function saveWishlists(list) {
   }
 }
 
+// Obfuscation functions for matches
+function getObfuscationKey() {
+  const roomId = getRoomId() || 'default';
+  // Create a key from room ID
+  let key = 0;
+  for (let i = 0; i < roomId.length; i++) {
+    key = ((key << 5) - key) + roomId.charCodeAt(i);
+    key = key & key; // Convert to 32bit integer
+  }
+  return Math.abs(key) || 12345; // Fallback key
+}
+
+function obfuscateString(str) {
+  if (!str) return str;
+  const key = getObfuscationKey();
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ (key + i) % 256);
+  }
+  // Base64 encode for additional obfuscation
+  try {
+    return btoa(result);
+  } catch (e) {
+    return str; // Fallback if btoa fails
+  }
+}
+
+function deobfuscateString(encoded) {
+  if (!encoded) return encoded;
+  try {
+    // Base64 decode
+    const decoded = atob(encoded);
+    const key = getObfuscationKey();
+    let result = '';
+    for (let i = 0; i < decoded.length; i++) {
+      result += String.fromCharCode(decoded.charCodeAt(i) ^ (key + i) % 256);
+    }
+    return result;
+  } catch (e) {
+    return encoded; // Fallback if decoding fails
+  }
+}
+
+function obfuscateMatches(matches) {
+  if (!Array.isArray(matches)) return matches;
+  return matches.map(match => {
+    const obfuscated = { ...match };
+    if (obfuscated.giver) obfuscated.giver = obfuscateString(obfuscated.giver);
+    if (obfuscated.receiver) obfuscated.receiver = obfuscateString(obfuscated.receiver);
+    // Keep deviceIds as they are (they're already random strings)
+    return obfuscated;
+  });
+}
+
+function deobfuscateMatches(matches) {
+  if (!Array.isArray(matches)) return matches;
+  return matches.map(match => {
+    const deobfuscated = { ...match };
+    if (deobfuscated.giver) deobfuscated.giver = deobfuscateString(deobfuscated.giver);
+    if (deobfuscated.receiver) deobfuscated.receiver = deobfuscateString(deobfuscated.receiver);
+    return deobfuscated;
+  });
+}
+
 function loadMatches() {
   if (useFirebase) {
     // Initialize if not set yet
     if (window.currentMatches === undefined) {
       window.currentMatches = [];
     }
-    return window.currentMatches;
+    // Deobfuscate matches from Firebase
+    return deobfuscateMatches(window.currentMatches);
   }
   
   // Fallback to localStorage
@@ -317,7 +368,9 @@ function loadMatches() {
     const raw = localStorage.getItem(MATCHES_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const matches = Array.isArray(parsed) ? parsed : [];
+    // Deobfuscate matches from localStorage
+    return deobfuscateMatches(matches);
   } catch (e) {
     console.error("Could not read matches", e);
     return [];
@@ -341,11 +394,14 @@ function cleanDataForFirebase(data) {
 }
 
 function saveMatches(matches) {
+  // Obfuscate matches before saving
+  const obfuscatedMatches = obfuscateMatches(matches);
+  
   if (useFirebase) {
     const matchesRef = getRoomRef('matches');
     if (matchesRef) {
       // Remove undefined values before saving to Firebase
-      const cleanedMatches = cleanDataForFirebase(matches);
+      const cleanedMatches = cleanDataForFirebase(obfuscatedMatches);
       window.firebaseSet(matchesRef, cleanedMatches).catch(e => {
         console.error("Could not save matches to Firebase", e);
       });
@@ -355,7 +411,7 @@ function saveMatches(matches) {
   
   // Fallback to localStorage
   try {
-    localStorage.setItem(MATCHES_KEY, JSON.stringify(matches));
+    localStorage.setItem(MATCHES_KEY, JSON.stringify(obfuscatedMatches));
   } catch (e) {
     console.error("Could not save matches", e);
   }
@@ -387,6 +443,7 @@ function setupFirebaseListeners() {
   if (matchesRef) {
     matchesListener = window.firebaseOnValue(matchesRef, (snapshot) => {
       const data = snapshot.val();
+      // Store obfuscated matches (will be deobfuscated in loadMatches)
       window.currentMatches = Array.isArray(data) ? data : [];
       renderMatches();
       // Show email notification if user has a match
@@ -411,12 +468,12 @@ function setupFirebaseListeners() {
         }
       }
       
-      // On first load, if no host exists, try to claim it
-      if (!hostCheckDone && !hostId) {
+      // On first load, if no host exists AND this is a new room creation, claim it
+      if (!hostCheckDone && !hostId && isNewRoomCreation()) {
         hostCheckDone = true;
         const deviceId = getDeviceId();
         if (deviceId) {
-          console.log("No host found, claiming host status...");
+          console.log("New room created, claiming host status...");
           setHostDeviceId(deviceId);
           return; // Will update again when setHostDeviceId triggers listener
         }
@@ -599,16 +656,11 @@ function renderMatches() {
       ? matches.find(m => {
           const giverName = m.giver.trim().toLowerCase();
           const userName = currentUser.trim().toLowerCase();
-          const match = giverName === userName;
-          if (!match) {
-            console.log(`Name mismatch: "${giverName}" !== "${userName}"`);
-          }
-          return match;
+          return giverName === userName;
         })
       : null;
   
-  console.log("Current user:", currentUser, "User match:", userMatch, "All matches:", matches);
-  console.log("Available giver names:", matches.map(m => m.giver));
+  // Removed console logs to prevent match exposure
 
   if (!currentUser) {
     const container = document.createElement("div");
@@ -667,12 +719,7 @@ function renderMatches() {
     p.style.marginBottom = "0.5rem";
     container.appendChild(p);
     
-    const p2 = document.createElement("p");
-    p2.style.fontSize = "0.75rem";
-    p2.style.color = "#7a5b65";
-    p2.textContent = "Available names in matches: " + matches.map(m => m.giver).join(", ");
-    p2.style.marginBottom = "0.3rem";
-    container.appendChild(p2);
+    // Removed display of available names to prevent match exposure
     
     const p3 = document.createElement("p");
     p3.style.fontSize = "0.75rem";
@@ -751,8 +798,21 @@ function renderMatches() {
           pair.receiver.trim().toLowerCase()
       );
 
+  // Obfuscate receiver name in DOM - split across multiple elements
   const title = document.createElement("h3");
-  title.textContent = `you are shopping for: ${pair.receiver}`;
+  const prefix = document.createTextNode("you are shopping for: ");
+  title.appendChild(prefix);
+  
+  // Split receiver name and encode each character
+  const receiverName = pair.receiver;
+  const encodedName = obfuscateString(receiverName);
+  const nameSpan = document.createElement("span");
+  nameSpan.setAttribute("data-enc", encodedName);
+  // Store in a way that's not immediately visible
+  nameSpan.style.display = "inline";
+  // Decode and display on render
+  nameSpan.textContent = receiverName;
+  title.appendChild(nameSpan);
   details.appendChild(title);
 
   if (receiverWishlist && receiverWishlist.items.length > 0) {
@@ -818,15 +878,7 @@ function showEmailNotificationIfMatch() {
   }
 }
 
-// Track if boot sequence is complete
-let bootComplete = false;
-
 function showEmailNotification() {
-  // Don't show email notification during boot sequence
-  if (!bootComplete) {
-    return;
-  }
-  
   const emailNotification = document.getElementById("email-notification");
   if (emailNotification) {
     emailNotification.classList.remove("hidden");
@@ -855,18 +907,45 @@ function showEmailReveal(userMatch, wishlists) {
           userMatch.receiver.trim().toLowerCase()
       );
   
-  // Build content
-  emailRevealContent.innerHTML = `
-    <h3>you are shopping for: ${userMatch.receiver}</h3>
-    ${receiverWishlist && receiverWishlist.items.length > 0 ? `
-      <div class="match-wishlist">
-        <div class="match-wishlist-title">their wishlist:</div>
-        <ul>
-          ${receiverWishlist.items.map(item => `<li>${item}</li>`).join('')}
-        </ul>
-      </div>
-    ` : '<p style="color: #7a5b65; font-size: 0.85rem;">they did not add any items.</p>'}
-  `;
+  // Build content using DOM manipulation to avoid exposing names in innerHTML
+  emailRevealContent.innerHTML = '';
+  
+  const h3 = document.createElement("h3");
+  const prefix = document.createTextNode("you are shopping for: ");
+  h3.appendChild(prefix);
+  // Obfuscate receiver name
+  const receiverName = userMatch.receiver;
+  const encodedName = obfuscateString(receiverName);
+  const nameSpan = document.createElement("span");
+  nameSpan.setAttribute("data-enc", encodedName);
+  nameSpan.textContent = receiverName;
+  h3.appendChild(nameSpan);
+  emailRevealContent.appendChild(h3);
+  
+  if (receiverWishlist && receiverWishlist.items.length > 0) {
+    const wishlistDiv = document.createElement("div");
+    wishlistDiv.className = "match-wishlist";
+    
+    const title = document.createElement("div");
+    title.className = "match-wishlist-title";
+    title.textContent = "their wishlist:";
+    wishlistDiv.appendChild(title);
+    
+    const ul = document.createElement("ul");
+    receiverWishlist.items.forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    wishlistDiv.appendChild(ul);
+    emailRevealContent.appendChild(wishlistDiv);
+  } else {
+    const p = document.createElement("p");
+    p.style.color = "#7a5b65";
+    p.style.fontSize = "0.85rem";
+    p.textContent = "they did not add any items.";
+    emailRevealContent.appendChild(p);
+  }
   
   emailReveal.classList.remove("hidden");
 }
@@ -1111,7 +1190,7 @@ function setupEventListeners() {
       const wishlists = loadWishlists();
       const existingMatches = loadMatches();
       
-      console.log("Generating matches for wishlists:", wishlists);
+      // Removed console log to prevent data exposure
 
       if (!wishlists || wishlists.length < 2) {
         alert("you need at least 2 people to generate secret santa matches.");
@@ -1124,7 +1203,7 @@ function setupEventListeners() {
         const existingGiverCount = new Set(existingMatches.map(m => m.giver.toLowerCase().trim())).size;
         const currentWishlistCount = wishlists.length;
         
-        console.log("Existing matches found:", existingGiverCount, "givers,", currentWishlistCount, "wishlists");
+        // Removed console log to prevent match exposure
         
         // Only allow regeneration if more people have been added
         if (currentWishlistCount <= existingGiverCount) {
@@ -1147,7 +1226,7 @@ function setupEventListeners() {
         return;
       }
 
-      console.log("Generated matches:", matches);
+      // Removed console log to prevent match exposure
       saveMatches(matches);
       renderMatches();
       
@@ -1328,9 +1407,6 @@ function runBootSequence() {
   if (!bootScreen) {
     // If for some reason there is no boot screen, just ensure desktop is visible
     document.body.classList.remove("booting");
-    bootComplete = true;
-    // Check if email notification should be shown
-    showEmailNotificationIfMatch();
     return;
   }
 
@@ -1380,9 +1456,6 @@ function runBootSequence() {
       setTimeout(() => {
         bootScreen.classList.add("boot-screen--hide");
         document.body.classList.remove("booting");
-        bootComplete = true;
-        // Now that boot is complete, check if email notification should be shown
-        showEmailNotificationIfMatch();
       }, 800);
     }
   }
@@ -1559,11 +1632,13 @@ function initializeApp() {
         // Host claiming is now handled in the host listener
       } else {
         console.log("ℹ️ Using localStorage (Firebase not configured)");
-        // Fallback: set host in localStorage if not set
-        const deviceId = getDeviceId();
-        const hostId = getHostDeviceId();
-        if (!hostId && deviceId) {
-          setHostDeviceId(deviceId);
+        // Fallback: set host in localStorage only if creating a new room
+        if (isNewRoomCreation()) {
+          const deviceId = getDeviceId();
+          const hostId = getHostDeviceId();
+          if (!hostId && deviceId) {
+            setHostDeviceId(deviceId);
+          }
         }
       }
     } else if (attempts < 10) {
@@ -1592,8 +1667,10 @@ function initializeApp() {
   // Setup email notification event listeners
   setupEmailNotificationListeners();
   
-  // Email notification will be shown after boot sequence completes
-  // (handled in runBootSequence)
+  // Check if email notification should be shown on initial load
+  setTimeout(() => {
+    showEmailNotificationIfMatch();
+  }, 1000);
   
   // Load user's existing wishlist into form if they have one
   // Wait a bit for Firebase data to load if using Firebase

@@ -474,26 +474,30 @@ body:not(.booting) .desktop {
   opacity: 0.75;
 }
 
+/*bottom right*/
 .window-decorative-1 {
-  top: 15%;
-  right: 5%;
+  top: 90%;
+  right: 0%;
   width: 250px;
 }
 
+/*top left*/
 .window-decorative-2 {
-  bottom: 20%;
-  left: 3%;
+  bottom: 10%;
+  left: 1%;
   width: 240px;
 }
 
+/*top right*/
 .window-decorative-3 {
-  top: 50%;
-  right: 2%;
+  top: 20%;
+  right: 0%;
   width: 220px;
 }
 
+/*middle left*/
 .window-decorative-4 {
-  top: 30%;
+  top: 70%;
   left: 2%;
   width: 230px;
 }
@@ -505,7 +509,7 @@ body:not(.booting) .desktop {
 }
 
 .window-decorative-6 {
-  top: 70%;
+  top: 10%;
   left: 5%;
   width: 225px;
 }
